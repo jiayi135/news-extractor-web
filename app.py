@@ -5,7 +5,7 @@ from bs4 import BeautifulSoup
 app = Flask(__name__)
 
 def get_news():
-    # 假设你有一个函数可以抓取新闻数据，这里仅为示例
+    # 示例新闻数据
     all_news = {
         "BBC": [
             ("Title 1", "https://example.com/news1", "https://example.com/image1.jpg", "Summary 1"),
