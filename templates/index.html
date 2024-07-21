@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>新闻提取</title>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
+        h1 { color: #333; }
+        h2 { color: #666; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin-bottom: 10px; }
+        a { color: #1a0dab; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+    <h1>新闻提取结果</h1>
+    {% for site, news_items in all_news.items() %}
+        <h2>{{ site }}</h2>
+        <ul>
+        {% for title, link in news_items %}
+            <li><a href="{{ link }}" target="_blank">{{ title }}</a></li>
+        {% endfor %}
+        </ul>
+    {% endfor %}
+</body>
+</html>
