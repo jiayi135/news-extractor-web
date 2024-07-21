@@ -1,28 +1,106 @@
-<!DOCTYPE html>
-<html lang="zh">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>新闻提取</title>
-    <style>
-        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; }
-        h1 { color: #333; }
-        h2 { color: #666; }
-        ul { list-style-type: none; padding: 0; }
-        li { margin-bottom: 10px; }
-        a { color: #1a0dab; text-decoration: none; }
-        a:hover { text-decoration: underline; }
-    </style>
-</head>
-<body>
-    <h1>新闻提取结果</h1>
-    {% for site, news_items in all_news.items() %}
-        <h2>{{ site }}</h2>
-        <ul>
-        {% for title, link in news_items %}
-            <li><a href="{{ link }}" target="_blank">{{ title }}</a></li>
-        {% endfor %}
-        </ul>
-    {% endfor %}
-</body>
-</html>
+from flask import Flask, render_template
+import requests
+from bs4 import BeautifulSoup
+import concurrent.futures
+import sys
+import traceback
+import re
+
+app = Flask(__name__)
+
+def extract_news(url, site_name):
+    try:
+        print(f"开始从 {site_name} 提取新闻", file=sys.stderr)
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
+        response = requests.get(url, headers=headers, timeout=30)
+        response.raise_for_status()
+        print(f"{site_name} 响应状态码: {response.status_code}", file=sys.stderr)
+        
+        soup = BeautifulSoup(response.content, 'html.parser')
+        news_items = []
+        
+        if site_name in ["万维TV", "LT视频世界", "大康有话说"]:
+            return extract_youtube_videos(soup, site_name)
+        elif site_name == "纽约时报":
+            articles = soup.find_all('div', class_='story-body')
+        elif site_name == "路透社":
+            articles = soup.find_all('div', class_='story-content')
+        elif site_name == "BBC":
+            articles = soup.find_all('div', class_='bbc-t44f9r')
+        elif site_name == "美国之音":
+            articles = soup.find_all('div', class_='teaser')
+        elif site_name == "法广":
+            articles = soup.find_all('article', class_='article')
+        elif site_name == "德国之声":
+            articles = soup.find_all('div', class_='news-teaser')
+        
+        print(f"找到 {len(articles)} 个 {site_name} 文章", file=sys.stderr)
+        
+        for article in articles[:5]:
+            title = article.find('h3') or article.find('h2')
+            title = title.text.strip() if title else 'No title found'
+            link = article.find('a')
+            link = link['href'] if link else '#'
+            if not link.startswith('http'):
+                link = url + link
+            news_items.append((title, link))
+            print(f"提取文章: {title}", file=sys.stderr)
+        
+        print(f"从 {site_name} 成功提取 {len(news_items)} 条新闻", file=sys.stderr)
+        return news_items
+    except Exception as e:
+        print(f"从 {site_name} 提取新闻时出错: {str(e)}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
+        return []
+
+def extract_youtube_videos(soup, channel_name):
+    try:
+        videos = []
+        for video in soup.find_all('div', {'id': 'dismissible'})[:5]:
+            title_element = video.find('yt-formatted-string', {'id': 'video-title'})
+            link_element = video.find('a', {'id': 'video-title-link'})
+            
+            if title_element and link_element:
+                title = title_element.text.strip()
+                link = 'https://www.youtube.com' + link_element['href']
+                videos.append((title, link))
+                print(f"提取 {channel_name} 视频: {title}", file=sys.stderr)
+        
+        print(f"从 {channel_name} 成功提取 {len(videos)} 个视频", file=sys.stderr)
+        return videos
+    except Exception as e:
+        print(f"从 {channel_name} 提取视频时出错: {str(e)}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
+        return []
+
+@app.route('/')
+def index():
+    sites = {
+        "纽约时报": "https://cn.nytimes.com/",
+        "路透社": "https://cn.reuters.com/",
+        "BBC": "https://www.bbc.com/zhongwen/simp",
+        "美国之音": "https://www.voachinese.com/",
+        "法广": "https://www.rfi.fr/cn/",
+        "德国之声": "https://www.dw.com/zh/",
+        "万维TV": "https://www.youtube.com/channel/UCcJmQMjUfsx8C2WlLGJmJRg/videos",
+        "LT视频世界": "https://www.youtube.com/channel/UCSrMyBuUbhXeYWsQpehFxxg/videos",
+        "大康有话说": "https://www.youtube.com/channel/UCUYoAUy7gVJDsfqI4rnvVtg/videos"
+    }
+    
+    all_news = {}
+    with concurrent.futures.ThreadPoolExecutor(max_workers=9) as executor:
+        future_to_site = {executor.submit(extract_news, url, name): name for name, url in sites.items()}
+        for future in concurrent.futures.as_completed(future_to_site):
+            site_name = future_to_site[future]
+            try:
+                news_items = future.result()
+                all_news[site_name] = news_items
+            except Exception as exc:
+                print(f'{site_name} 生成了一个异常: {exc}', file=sys.stderr)
+                print(traceback.format_exc(), file=sys.stderr)
+    
+    print(f"所有新闻: {all_news}", file=sys.stderr)
+    return render_template('index.html', all_news=all_news)
+
+if __name__ == '__main__':
+    app.run(debug=True)
