@@ -4,29 +4,39 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>新闻提取</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; padding: 20px; background-color: #f5f5f5; }
+        h1 { color: #333; font-size: 24px; }
+        h2 { color: #666; font-size: 20px; border-bottom: 2px solid #e5e5e5; padding-bottom: 5px; margin-bottom: 10px; }
+        ul { list-style-type: none; padding: 0; }
+        li { margin-bottom: 20px; background: #fff; padding: 15px; border-radius: 5px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        a { color: #1a0dab; text-decoration: none; font-weight: bold; }
+        a:hover { text-decoration: underline; }
+        .news-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .news-item { display: flex; flex-direction: column; }
+        .news-item img { max-width: 100%; height: auto; border-radius: 5px; }
+        .news-summary { color: #666; margin-top: 10px; }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <h1>新闻提取结果</h1>
-        {% for site, news_items in all_news.items() %}
-            <h2>{{ site }}</h2>
-            <div class="news-grid">
-                {% for title, link, image, summary in news_items %}
-                    <div class="news-item">
-                        {% if image %}
-                            <img src="{{ image }}" alt="{{ title }}">
+    <h1>新闻提取结果</h1>
+    {% for site, news_items in all_news.items() %}
+        <h2>{{ site }}</h2>
+        <div class="news-grid">
+            {% for title, link, summary, image in news_items %}
+                <div class="news-item">
+                    {% if image %}
+                        <img src="{{ image }}" alt="{{ title }}">
+                    {% endif %}
+                    <div>
+                        <h3><a href="{{ link }}" target="_blank">{{ title }}</a></h3>
+                        {% if summary %}
+                            <p class="news-summary">{{ summary }}</p>
                         {% endif %}
-                        <div>
-                            <h3><a href="{{ link }}" target="_blank">{{ title }}</a></h3>
-                            {% if summary %}
-                                <p>{{ summary }}</p>
-                            {% endif %}
-                        </div>
                     </div>
-                {% endfor %}
-            </div>
-        {% endfor %}
-    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endfor %}
 </body>
 </html>
