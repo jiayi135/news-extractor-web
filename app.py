@@ -1,30 +1,40 @@
-from flask import Flask, render_template
 import requests
 from bs4 import BeautifulSoup
 
-app = Flask(__name__)
+def get_bbc_news():
+    url = "https://www.bbc.com/zhongwen/simp"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    news_items = []
+    
+    for item in soup.select('.lx-stream-post__header-text'):
+        title = item.get_text()
+        link = item.find('a')['href']
+        link = "https://www.bbc.com" + link if link.startswith('/') else link
+        summary = item.find_next_sibling('p').get_text() if item.find_next_sibling('p') else ""
+        news_items.append((title, link, summary, None))
+    
+    return news_items
 
-def get_news():
-    # 示例新闻数据
-    all_news = {
-        "BBC": [
-            ("Title 1", "https://example.com/news1", "https://example.com/image1.jpg", "Summary 1"),
-            ("Title 2", "https://example.com/news2", "https://example.com/image2.jpg", "Summary 2"),
-            # 其他新闻条目...
-        ],
-        "CNN": [
-            ("Title A", "https://example.com/newsA", "https://example.com/imageA.jpg", "Summary A"),
-            ("Title B", "https://example.com/newsB", "https://example.com/imageB.jpg", "Summary B"),
-            # 其他新闻条目...
-        ],
-        # 其他新闻来源...
+def get_reuters_news():
+    url = "https://cn.reuters.com/"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    news_items = []
+
+    for item in soup.select('.story-content a'):
+        title = item.get_text().strip()
+        link = item['href']
+        link = "https://cn.reuters.com" + link if link.startswith('/') else link
+        summary = item.find_next_sibling('p').get_text().strip() if item.find_next_sibling('p') else ""
+        news_items.append((title, link, summary, None))
+
+    return news_items
+
+def get_all_news():
+    news = {
+        "BBC 中文网": get_bbc_news(),
+        "路透社中文网": get_reuters_news(),
+        # 根据需要添加其他网站的提取函数
     }
-    return all_news
-
-@app.route('/')
-def index():
-    all_news = get_news()
-    return render_template('index.html', all_news=all_news)
-
-if __name__ == '__main__':
-    app.run(debug=True)
+    return news
